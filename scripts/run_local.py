@@ -2,8 +2,10 @@
 check before deploying. Skips the reconciler's state persistence (no Modal
 Dict outside the cloud); logs a fresh window each run.
 
-Usage: DRY_RUN=true op run --env-file=.env.tpl -- uv run scripts/run_local.py
-(also wired as `just run-local`)
+Usage: PYTHONPATH=src DRY_RUN=true op run --env-file=.env.tpl -- uv run scripts/run_local.py
+(also wired as `just run-local`, which sets PYTHONPATH=src automatically -
+plain `uv run` doesn't apply pytest's pythonpath config, so `core` isn't
+importable without it)
 """
 
 from datetime import datetime, timedelta, timezone

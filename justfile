@@ -36,5 +36,7 @@ run:
     op run --env-file=.env.tpl -- uv run modal run app.py::daily
 
 # Same dispatch logic, no Modal at all - forced DRY_RUN so nothing writes to Notion
+# (PYTHONPATH=src: plain `uv run` doesn't apply pytest's pythonpath config,
+# and Modal's add_local_dir only wires up `core` in the deployed container)
 run-local:
-    DRY_RUN=true op run --env-file=.env.tpl -- uv run scripts/run_local.py
+    PYTHONPATH=src DRY_RUN=true op run --env-file=.env.tpl -- uv run scripts/run_local.py
