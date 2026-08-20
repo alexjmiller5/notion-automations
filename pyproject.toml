@@ -1,0 +1,27 @@
+[project]
+name = "notion-automations"
+version = "0.1.0"
+description = "All my Notion automations codified outside Notion - Modal cron dispatcher + webhook receiver"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28",
+    "pydantic-settings>=2.7",
+    "pyjwt>=2.10",
+    "cryptography>=44.0",
+    "fastapi>=0.115",
+]
+
+[dependency-groups]
+dev = [
+    "modal>=1.0",
+    "pytest>=8.3",
+    "ruff>=0.9",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+src = ["src", "tests"]
+line-length = 100
