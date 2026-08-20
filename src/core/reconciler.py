@@ -1,0 +1,57 @@
+"""Daily compliance sweep: flag violations as remediation tasks; never fix
+directly (a human backfills the true event timestamps - the reconciler runs
+after the fact and can't know when things actually happened).
+
+State (`since`) is persisted by the caller (app.py, via a modal.Dict) -
+this module stays pure of Modal.
+"""
+
+from core.notion import task_properties
+from core.registry import CALENDAR, TASKS
+from core.rules import Violation, evaluate, title_of
+
+
+def reconcile(notion, dbs, since_iso, now):
+    logs, seen = [], set()
+    for ds in sorted(dbs):
+        pages = notion.query(
+            ds,
+            filter={
+                "timestamp": "last_edited_time",
+                "last_edited_time": {"on_or_after": since_iso},
+            },
+        )
+        for page in pages:
+            if page["id"] in seen:
+                continue
+            violations = evaluate(ds, page, now)
+            if ds == CALENDAR and not (page["properties"].get("Notes") or {}).get("relation"):
+                # webhook-only rule (see handlers.py) re-flagged here since a
+                # missed/failed webhook delivery would otherwise go unnoticed
+                violations = [
+                    *violations,
+                    Violation(
+                        "calendar-companion-note",
+                        page["id"],
+                        title_of(page["properties"]),
+                        page.get("url", ""),
+                        None,
+                    ),
+                ]
+            if not violations:
+                continue
+            seen.add(page["id"])
+            rules = ", ".join(v.rule for v in violations)
+            v0 = violations[0]
+            notion.create_page(
+                TASKS,
+                task_properties(
+                    f"Fix Notion data ({rules}) on '{v0.page_title}'",
+                    now.date(),
+                    ("Chore",),
+                    "High",
+                    links=v0.page_url,
+                ),
+            )
+            logs.append(f"flagged {v0.page_title}: {rules}")
+    return logs, now.isoformat()
