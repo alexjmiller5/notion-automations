@@ -1,15 +1,21 @@
 """All Notion API I/O lives here. Nothing else in core touches HTTP."""
 
-from datetime import date
+from datetime import date, datetime
 
 import httpx
 
 from core.planner import TaskSnapshot
+from core.rules import history_entry
 
 API = "https://api.notion.com"
 
 
-def task_properties(title, due, tags, priority, links="", notes="", blocked_by=""):
+def task_properties(
+    title, due, tags, priority, links="", notes="", blocked_by="", now: datetime | None = None
+):
+    """Build Tasks-DB page properties. Pass `now` for any bot-created task so
+    it's born with an initial Tag & Date History entry - otherwise the daily
+    reconciler flags it (and every task like it) the very next sweep."""
     props = {
         "Name": {"title": [{"text": {"content": title}}]},
         "Status": {"status": {"name": "To Do"}},
@@ -23,6 +29,9 @@ def task_properties(title, due, tags, priority, links="", notes="", blocked_by="
         props["Notes"] = {"rich_text": [{"text": {"content": notes}}]}
     if blocked_by:
         props["Blocked by"] = {"relation": [{"id": blocked_by}]}
+    if now is not None:
+        entry = history_entry(tags, due.isoformat(), now)
+        props["Tag & Date History"] = {"rich_text": [{"text": {"content": entry}}]}
     return props
 
 

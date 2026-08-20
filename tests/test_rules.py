@@ -370,6 +370,21 @@ def test_synapse_outcome_reviewed_sets_date_reviewed():
     )
 
 
+def test_synapse_created_autoapprove_also_sets_date_reviewed():
+    # on created=True, the Date Reviewed rule must evaluate the EFFECTIVE
+    # post-fix Outcome (Successful Flow), not the raw "To Review" - otherwise
+    # the auto-approved page is born without a Date Reviewed timestamp
+    p = _synapse_page(Outcome=status("To Review"), **{"Date Reviewed": dateval(None)})
+    v = evaluate(R.SYNAPSE, p, NOW, created=True)
+    rules = {x.rule: x for x in v}
+    assert rules["synapse-outcome"].fix["Outcome"]["status"]["name"] == "Successful Flow"
+    assert (
+        rules["synapse-date-reviewed-set"]
+        .fix["Date Reviewed"]["date"]["start"]
+        .startswith("2026-08-20")
+    )
+
+
 def test_synapse_to_review_clears_date_reviewed():
     p = _synapse_page(Outcome=status("To Review"), **{"Date Reviewed": dateval("2026-08-01")})
     v = evaluate(R.SYNAPSE, p, NOW)

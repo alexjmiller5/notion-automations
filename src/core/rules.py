@@ -22,16 +22,20 @@ TIMESTAMP_RULES = {
     R.TV: [("Status", "Date Watched", {"Finished"}, {"Not Started", "In Progress"})],
     R.MOVIES: [("Status", "Date Watched", {"Finished"}, {"Not Started", "In Progress"})],
     R.ARTICLES: [("Status", "Read Date", {"Done"}, {"Not started", "In progress"})],
-    # Outcome has no "Complete"/"To-do" options; "reviewed" = triaged away from
-    # "To Review" into any terminal category (see task-6-report.md).
-    R.SYNAPSE: [
-        (
-            "Outcome",
-            "Date Reviewed",
-            {"User Error", "Test Execution", "Bug", "Failed Extraction", "Successful Flow"},
-            {"To Review"},
-        )
-    ],
+    # Synapse's Outcome -> Date Reviewed rule is handled in the SYNAPSE-specific
+    # block in evaluate() instead of here: on page.created it must judge the
+    # EFFECTIVE post-fix Outcome (after the auto-approve fix below), not the
+    # raw one, so it can't be a simple raw-property lookup like the rest.
+}
+
+# Outcome has no "Complete"/"To-do" options; "reviewed" = triaged away from
+# "To Review" into any terminal category (see task-6-report.md).
+SYNAPSE_REVIEWED_STATUSES = {
+    "User Error",
+    "Test Execution",
+    "Bug",
+    "Failed Extraction",
+    "Successful Flow",
 }
 
 
@@ -59,6 +63,14 @@ def _status(props, prop):  # tolerate select-typed status props
 
 def _date_set(props, prop):
     return bool((props.get(prop) or {}).get("date"))
+
+
+def history_entry(tags, due_iso, now):
+    """Canonical Tag & Date History line format - shared by the Tasks
+    default-history rule below, core.handlers' edit-time append, and
+    core.notion.task_properties (bot-created tasks born history-compliant)."""
+    stamp = now.astimezone(NY).strftime("%Y-%m-%d %H:%M")
+    return f"[{stamp}] --- Tags: [{', '.join(tags)}], Due Date: {due_iso[:10]}"
 
 
 _SLUGS = {
@@ -109,8 +121,7 @@ def evaluate(data_source_id, page, now, created=False):
             # must reflect the state as-written, including defaults just applied
             tags = existing_tags or ["Chore"]
             due = ((props.get("Due Date") or {}).get("date") or {}).get("start") or due_today
-            stamp = now.astimezone(NY).strftime("%Y-%m-%d %H:%M")
-            entry = f"[{stamp}] --- Tags: [{', '.join(tags)}], Due Date: {due[:10]}"
+            entry = history_entry(tags, due, now)
             viol(
                 "tasks-history",
                 {"Tag & Date History": {"rich_text": [{"text": {"content": entry}}]}},
@@ -125,11 +136,22 @@ def evaluate(data_source_id, page, now, created=False):
             )
         elif not remedied and _date_set(props, "Date Remedied"):
             viol("synapse-date-remedied-clear", {"Date Remedied": {"date": None}})
+
+        effective_outcome = _status(props, "Outcome")
         if created:
             exec_ok = _status(props, "Code Execution") == "Success"
             cat = ((props.get("Category") or {}).get("select") or {}).get("name", "")
             desired = "Successful Flow" if (exec_ok and cat == "bookmarks") else "To Review"
-            if _status(props, "Outcome") != desired:
+            if effective_outcome != desired:
                 viol("synapse-outcome", {"Outcome": {"status": {"name": desired}}})
+            effective_outcome = desired  # post-fix value - mirrors the tasks-history technique
+
+        if effective_outcome in SYNAPSE_REVIEWED_STATUSES and not _date_set(props, "Date Reviewed"):
+            viol(
+                f"{slug}-date-reviewed-set",
+                {"Date Reviewed": {"date": {"start": now.astimezone(NY).isoformat()}}},
+            )
+        elif effective_outcome == "To Review" and _date_set(props, "Date Reviewed"):
+            viol(f"{slug}-date-reviewed-clear", {"Date Reviewed": {"date": None}})
 
     return out

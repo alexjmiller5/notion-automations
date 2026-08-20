@@ -7,7 +7,7 @@ this module stays pure of Modal.
 """
 
 from core.notion import task_properties
-from core.registry import CALENDAR, TASKS
+from core.registry import CALENDAR, TASKS, TRIPS
 from core.rules import Violation, evaluate, title_of
 
 
@@ -38,6 +38,25 @@ def reconcile(notion, dbs, since_iso, now):
                         None,
                     ),
                 ]
+            if ds == TRIPS:
+                # same invariant as handlers.py's live sync, re-checked here in
+                # case that webhook delivery was missed/failed - never fixed
+                # directly (a human decides the intended title), just flagged
+                trip_title = title_of(page["properties"])
+                desired = f"{trip_title} Notes"
+                for rel in (page["properties"].get("Notes") or {}).get("relation", []):
+                    note = notion.get_page(rel["id"])
+                    if title_of(note["properties"]) != desired:
+                        violations = [
+                            *violations,
+                            Violation(
+                                "trips-note-title",
+                                page["id"],
+                                trip_title,
+                                page.get("url", ""),
+                                None,
+                            ),
+                        ]
             if not violations:
                 continue
             seen.add(page["id"])
@@ -51,6 +70,7 @@ def reconcile(notion, dbs, since_iso, now):
                     ("Chore",),
                     "High",
                     links=v0.page_url,
+                    now=now,
                 ),
             )
             logs.append(f"flagged {v0.page_title}: {rules}")

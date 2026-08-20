@@ -1,4 +1,4 @@
-"""Pure recurrence engine. No Notion, no I/O — dates in, decisions out."""
+"""Pure recurrence engine. No Notion, no I/O - dates in, decisions out."""
 
 import calendar
 from dataclasses import dataclass
@@ -38,7 +38,7 @@ def next_occurrence(spec, existing, today):
         last = max(completions + [spec.anchor]) if completions else spec.anchor
         return Occurrence(due=_step(last, spec))
     # fixed: series anchor + n*interval; materialize the latest series date <= today
-    # unless a task for that date already exists (any status).
+    # unless the occurrence is already fully handled (any status).
     d = spec.anchor
     latest_due = None
     while d <= today:
@@ -46,6 +46,19 @@ def next_occurrence(spec, existing, today):
         d = _step(d, spec)
     if latest_due is None:
         return None
-    if any(t.due == latest_due for t in existing):
+    if spec.templates:
+        # per-template due (offset applied) must all already exist, else the
+        # occurrence still has missing tasks - fire so dispatch() can finish
+        # them (per-template dedupe there skips whichever already exist)
+        handled = all(
+            any(
+                s.title == t.title and s.due == latest_due + timedelta(days=t.due_offset_days)
+                for s in existing
+            )
+            for t in spec.templates
+        )
+    else:
+        handled = any(t.due == latest_due for t in existing)
+    if handled:
         return None
     return Occurrence(due=latest_due)

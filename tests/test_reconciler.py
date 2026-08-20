@@ -13,11 +13,15 @@ NOW = datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc)
 
 
 class FakeNotion:
-    def __init__(self, pages_by_ds):
+    def __init__(self, pages_by_ds, pages_by_id=None):
         self.p, self.created = pages_by_ds, []
+        self._by_id = pages_by_id or {}
 
     def query(self, ds, filter=None, **kw):
         return self.p.get(ds, [])
+
+    def get_page(self, page_id):
+        return self._by_id[page_id]
 
     def create_page(self, ds, props, icon=None):
         self.created.append((ds, props))
@@ -94,4 +98,47 @@ def test_calendar_missing_note_flagged():
 def test_calendar_with_note_creates_nothing():
     fake = FakeNotion({R.CALENDAR: [cal_page(notes_rel=[{"id": "n1"}])]})
     logs, _ = reconcile(fake, frozenset({R.CALENDAR}), "2026-08-19T12:00:00+00:00", NOW)
+    assert fake.created == []
+
+
+def trip_page(pid="tr1", title="Japan", notes_rel=()):
+    return {
+        "id": pid,
+        "url": f"https://notion.so/{pid}",
+        "parent": {"data_source_id": R.TRIPS},
+        "properties": {
+            "Name": {"title": [{"plain_text": title}]},
+            "Notes": {"relation": list(notes_rel)},
+        },
+    }
+
+
+def note_page(pid, title):
+    return {
+        "id": pid,
+        "url": f"https://notion.so/{pid}",
+        "parent": {"data_source_id": R.NOTES},
+        "properties": {"Title": {"title": [{"plain_text": title}]}},
+    }
+
+
+def test_trips_mismatched_note_title_flagged():
+    fake = FakeNotion(
+        {R.TRIPS: [trip_page(notes_rel=[{"id": "n1"}])]},
+        pages_by_id={"n1": note_page("n1", "Old Title")},
+    )
+    logs, _ = reconcile(fake, frozenset({R.TRIPS}), "2026-08-19T12:00:00+00:00", NOW)
+    assert len(fake.created) == 1
+    ds, props = fake.created[0]
+    assert ds == R.TASKS
+    title = props["Name"]["title"][0]["text"]["content"]
+    assert "Japan" in title and "trips-note-title" in title
+
+
+def test_trips_matching_note_title_creates_nothing():
+    fake = FakeNotion(
+        {R.TRIPS: [trip_page(notes_rel=[{"id": "n1"}])]},
+        pages_by_id={"n1": note_page("n1", "Japan Notes")},
+    )
+    logs, _ = reconcile(fake, frozenset({R.TRIPS}), "2026-08-19T12:00:00+00:00", NOW)
     assert fake.created == []

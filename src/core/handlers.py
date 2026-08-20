@@ -15,12 +15,10 @@ that shape this module:
 
 import hashlib
 import hmac
-from zoneinfo import ZoneInfo
 
 from core import registry as R
-from core.rules import evaluate, title_of  # title_of shared deliberately (renamed from _title)
+from core.rules import evaluate, history_entry, title_of  # shared deliberately, not reimplemented
 
-NY = ZoneInfo("America/New_York")
 EVENT_DBS = frozenset(
     {
         R.TASKS,
@@ -44,13 +42,6 @@ def verify_signature(body, header, secret):
     return hmac.compare_digest(expected, header)
 
 
-def _history_entry(props, now):
-    tags = [t["name"] for t in (props.get("Tags") or {}).get("multi_select", [])]
-    due = (((props.get("Due Date") or {}).get("date")) or {}).get("start", "None")
-    stamp = now.astimezone(NY).strftime("%Y-%m-%d %H:%M")
-    return f"[{stamp}] --- Tags: [{', '.join(tags)}], Due Date: {due[:10]}"
-
-
 def _updated_names(props, updated_ids):
     ids = set(updated_ids)
     return {name for name, val in props.items() if val.get("id") in ids}
@@ -72,7 +63,7 @@ def handle_event(event, notion, now, bot_id):
     created = event["type"] == "page.created"
     props, log = page["properties"], []
 
-    # 1. property rules (pure) — apply fixes
+    # 1. property rules (pure) - apply fixes
     for v in evaluate(ds, page, now, created=created):
         if v.fix:
             notion.update_page(page["id"], v.fix)
@@ -86,7 +77,9 @@ def handle_event(event, notion, now, bot_id):
                 t.get("plain_text", "")
                 for t in (props.get("Tag & Date History") or {}).get("rich_text", [])
             )
-            entry = _history_entry(props, now)
+            tags = [t["name"] for t in (props.get("Tags") or {}).get("multi_select", [])]
+            due = (((props.get("Due Date") or {}).get("date")) or {}).get("start", "None")
+            entry = history_entry(tags, due, now)
             new = f"{existing}\n{entry}" if existing else entry
             notion.update_page(
                 page["id"], {"Tag & Date History": {"rich_text": [{"text": {"content": new}}]}}

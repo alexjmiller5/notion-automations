@@ -1,4 +1,4 @@
-"""Modal deployment shim — ALL infrastructure lives here, as code.
+"""Modal deployment shim - ALL infrastructure lives here, as code.
 
 Business logic stays in src/core/ (plain Python, no Modal imports) so the
 same package runs on the mac mini, in tests, or anywhere else. This file
@@ -48,9 +48,12 @@ def daily():
     now = datetime.now(timezone.utc)
     today = now.astimezone(ZoneInfo("America/New_York")).date()
 
-    for line in dispatch(notion, today):
+    for line in dispatch(notion, today, now):
         print(line)
-    print(check_cert(notion, developer_id_expiry(s), today))
+    try:
+        print(check_cert(notion, developer_id_expiry(s), today, now))
+    except Exception as e:
+        print(f"cert check failed: {e}")
 
     since = state.get("high_water") or (now - timedelta(days=1)).isoformat()
     logs, mark = reconcile(notion, EVENT_DBS, since, now)
@@ -81,7 +84,7 @@ async def notion_webhook(request: Request):
         raise HTTPException(status_code=401)
     notion = NotionClient(s.notion_api_token, dry_run=s.dry_run)
     now = datetime.now(timezone.utc)
-    # Notion sends one event per delivery (not a batch under "events" —
+    # Notion sends one event per delivery (not a batch under "events" -
     # pinned against the docs 2026-08-20; "batched" in their docs means
     # multiple rapid edits get coalesced into fewer events upstream, not
     # multiple events per HTTP request).
