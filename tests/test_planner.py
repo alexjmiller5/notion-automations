@@ -1,20 +1,7 @@
 from datetime import date
-from dataclasses import dataclass
 
 from core.planner import TaskSnapshot, add_months, next_occurrence
-
-
-# stand-in until Task 3's registry lands
-@dataclass(frozen=True)
-class RecurringSpec:
-    key: str
-    mode: str
-    interval_months: int
-    interval_days: int
-    anchor: date
-    match_titles: tuple[str, ...]
-    templates: tuple
-
+from core.registry import RecurringSpec
 
 OPEN, DONE, CXL = "To Do", "Completed", "Canceled"
 
