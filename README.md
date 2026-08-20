@@ -15,6 +15,7 @@ src/core/registry.py   the automations catalog (recurring specs + event rules)
 src/core/notion.py     Notion API client - the only module that talks to Notion
 src/core/asc.py        App Store Connect API client - cert-expiry checks
 scripts/run_local.py   dry-run the dispatch logic with no Modal at all
+scripts/ensure_schema.py  idempotent bootstrap: recreates required Notion properties if deleted
 tests/                  pytest
 .env.tpl                secrets manifest (1Password op:// refs, committed)
 justfile                dev / test / run / sync-secrets / deploy
@@ -41,7 +42,10 @@ See `AGENTS.md` for the architecture rule and stack.
    dashboard).
 3. `uv run modal token new` - authenticate this machine with Modal, for
    local `just dev` / `just run`.
-4. Create the webhook subscription (Notion has no API for this - integration
+4. Before first deploy: `op run --env-file=.env.tpl -- uv run scripts/ensure_schema.py` -
+   idempotent, additive-only check that recreates the Tasks `Tag & Date History`
+   property if a human has deleted it from the live DB (safe to rerun anytime).
+5. Create the webhook subscription (Notion has no API for this - integration
    settings only):
    - Deploy first (push to `main`) so `notion_webhook`'s URL exists.
    - `notion.so/profile/integrations` -> the integration -> **Webhooks**
@@ -55,12 +59,13 @@ See `AGENTS.md` for the architecture rule and stack.
      make a small test edit on any watched DB and confirm `just logs`
      shows the event handled (not a 401).
 
-## Local dry runs
+## Local runs
 
-- `just run` - trigger `daily()` once against real Modal infra (ephemeral
-  container, not the deployed schedule).
-- `just run-local` - same dispatch logic with zero Modal involvement,
+- `just run-local` - dry run: same dispatch logic with zero Modal involvement,
   `DRY_RUN=true` forced so nothing writes to Notion (`scripts/run_local.py`).
+- `just run` - **not a dry run** - triggers `daily()` once against real Modal
+  infra (ephemeral container, not the deployed schedule) and performs real
+  writes to Notion.
 
 ## Cutover checklist
 
