@@ -17,7 +17,7 @@ import hashlib
 import hmac
 
 from core import registry as R
-from core.rules import evaluate, history_entry, title_of  # shared deliberately, not reimplemented
+from core.rules import evaluate, title_of  # title_of shared deliberately (renamed from _title)
 
 EVENT_DBS = frozenset(
     {
@@ -42,11 +42,6 @@ def verify_signature(body, header, secret):
     return hmac.compare_digest(expected, header)
 
 
-def _updated_names(props, updated_ids):
-    ids = set(updated_ids)
-    return {name for name, val in props.items() if val.get("id") in ids}
-
-
 def handle_event(event, notion, now, bot_id):
     if any(a.get("id") == bot_id for a in event.get("authors", [])):
         return ["skipped: self-authored"]
@@ -69,24 +64,7 @@ def handle_event(event, notion, now, bot_id):
             notion.update_page(page["id"], v.fix)
             log.append(f"applied {v.rule}")
 
-    # 2. Tasks: append history on Due Date / Tags edits (native Track Tag & Date History)
-    if ds == R.TASKS and not created:
-        touched = _updated_names(props, event["data"].get("updated_properties", []))
-        if touched & {"Due Date", "Tags"}:
-            existing = "".join(
-                t.get("plain_text", "")
-                for t in (props.get("Tag & Date History") or {}).get("rich_text", [])
-            )
-            tags = [t["name"] for t in (props.get("Tags") or {}).get("multi_select", [])]
-            due = (((props.get("Due Date") or {}).get("date")) or {}).get("start", "None")
-            entry = history_entry(tags, due, now)
-            new = f"{existing}\n{entry}" if existing else entry
-            notion.update_page(
-                page["id"], {"Tag & Date History": {"rich_text": [{"text": {"content": new}}]}}
-            )
-            log.append("appended tag/date history")
-
-    # 3. Calendar: companion note on creation (native Create Calendar Item Notes)
+    # 2. Calendar: companion note on creation (native Create Calendar Item Notes)
     if ds == R.CALENDAR and created and not (props.get("Notes") or {}).get("relation"):
         note = notion.create_page(
             R.NOTES, {"Title": {"title": [{"text": {"content": f"{title_of(props)} Notes"}}]}}
@@ -94,7 +72,7 @@ def handle_event(event, notion, now, bot_id):
         notion.update_page(page["id"], {"Notes": {"relation": [{"id": note["id"]}]}})
         log.append("created companion note")
 
-    # 4. Trips: sync linked note titles (native "Alex Miller's automation")
+    # 3. Trips: sync linked note titles (native "Alex Miller's automation")
     if ds == R.TRIPS:
         desired = f"{title_of(props)} Notes"
         for rel in (props.get("Notes") or {}).get("relation", []):

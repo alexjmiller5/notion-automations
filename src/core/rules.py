@@ -65,14 +65,6 @@ def _date_set(props, prop):
     return bool((props.get(prop) or {}).get("date"))
 
 
-def history_entry(tags, due_iso, now):
-    """Canonical Tag & Date History line format - shared by the Tasks
-    default-history rule below, core.handlers' edit-time append, and
-    core.notion.task_properties (bot-created tasks born history-compliant)."""
-    stamp = now.astimezone(NY).strftime("%Y-%m-%d %H:%M")
-    return f"[{stamp}] --- Tags: [{', '.join(tags)}], Due Date: {due_iso[:10]}"
-
-
 _SLUGS = {
     R.TASKS: "tasks",
     R.PROJECTS: "projects",
@@ -112,20 +104,6 @@ def evaluate(data_source_id, page, now, created=False):
             viol("tasks-default-tags", {"Tags": {"multi_select": [{"name": "Chore"}]}})
         if not (props.get("Priority") or {}).get("select"):
             viol("tasks-default-priority", {"Priority": {"select": {"name": "High"}}})
-        history = "".join(
-            t.get("plain_text", "")
-            for t in (props.get("Tag & Date History") or {}).get("rich_text", [])
-        )
-        if not history:
-            # effective (post-default) values, not raw props - the audit log
-            # must reflect the state as-written, including defaults just applied
-            tags = existing_tags or ["Chore"]
-            due = ((props.get("Due Date") or {}).get("date") or {}).get("start") or due_today
-            entry = history_entry(tags, due, now)
-            viol(
-                "tasks-history",
-                {"Tag & Date History": {"rich_text": [{"text": {"content": entry}}]}},
-            )
 
     if data_source_id == R.SYNAPSE:
         remedied = (props.get("Remedied?") or {}).get("checkbox", False)
@@ -144,7 +122,7 @@ def evaluate(data_source_id, page, now, created=False):
             desired = "Successful Flow" if (exec_ok and cat == "bookmarks") else "To Review"
             if effective_outcome != desired:
                 viol("synapse-outcome", {"Outcome": {"status": {"name": desired}}})
-            effective_outcome = desired  # post-fix value - mirrors the tasks-history technique
+            effective_outcome = desired  # post-fix value, not the raw one
 
         if effective_outcome in SYNAPSE_REVIEWED_STATUSES and not _date_set(props, "Date Reviewed"):
             viol(

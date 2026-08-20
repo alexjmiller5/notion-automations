@@ -25,9 +25,9 @@ def main() -> None:
     now = datetime.now(timezone.utc)
     today = now.astimezone(ZoneInfo("America/New_York")).date()
 
-    for line in dispatch(notion, today, now):
+    for line in dispatch(notion, today):
         print(line)
-    print(check_cert(notion, developer_id_expiry(s), today, now))
+    print(check_cert(notion, developer_id_expiry(s), today))
 
     since = (now - timedelta(days=1)).isoformat()
     logs, _mark = reconcile(notion, EVENT_DBS, since, now)

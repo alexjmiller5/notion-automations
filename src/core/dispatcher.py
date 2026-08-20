@@ -10,7 +10,7 @@ CERT_LEAD_DAYS = 30
 _PERSON_NAMES = {person_id: name for name, person_id in PEOPLE_IDS.items()}
 
 
-def dispatch(notion, today, now):
+def dispatch(notion, today):
     log = []
     for spec in RECURRING:
         existing = notion.snapshots(TASKS, spec.match_titles)
@@ -38,7 +38,6 @@ def dispatch(notion, today, now):
                 links=t.links,
                 notes=t.notes,
                 blocked_by=prev_id if t.blocked_by_prev else "",
-                now=now,
             )
             prev_id = notion.create_page(TASKS, props)["id"]
             log.append(f"{spec.key}: created '{t.title}' due {due}")
@@ -60,7 +59,7 @@ def dispatch(notion, today, now):
     return log
 
 
-def check_cert(notion, expiry, today, now):
+def check_cert(notion, expiry, today):
     if expiry is None:
         return "cert: ASC creds not configured, skipped"
     if (expiry - today).days > CERT_LEAD_DAYS:
@@ -80,7 +79,6 @@ def check_cert(notion, expiry, today, now):
             today,
             ("Chore", "Development"),
             "Medium",
-            now=now,
         ),
     )
     return "cert: created renewal task"

@@ -70,7 +70,6 @@ def reconcile(notion, dbs, since_iso, now):
                     ("Chore",),
                     "High",
                     links=v0.page_url,
-                    now=now,
                 ),
             )
             logs.append(f"flagged {v0.page_title}: {rules}")

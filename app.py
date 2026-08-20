@@ -48,10 +48,10 @@ def daily():
     now = datetime.now(timezone.utc)
     today = now.astimezone(ZoneInfo("America/New_York")).date()
 
-    for line in dispatch(notion, today, now):
+    for line in dispatch(notion, today):
         print(line)
     try:
-        print(check_cert(notion, developer_id_expiry(s), today, now))
+        print(check_cert(notion, developer_id_expiry(s), today))
     except Exception as e:
         print(f"cert check failed: {e}")
 

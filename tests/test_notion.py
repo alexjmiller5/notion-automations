@@ -1,7 +1,7 @@
 import httpx
 import json
 from core.notion import NotionClient, task_properties
-from datetime import date, datetime, timezone
+from datetime import date
 
 
 def make_client(handler, dry_run=False):
@@ -40,17 +40,6 @@ def test_task_properties_payload():
     assert p["Priority"]["select"]["name"] == "High"
     assert p["Tags"]["multi_select"] == [{"name": "Chore"}]
     assert p["Blocked by"]["relation"] == [{"id": "abc"}]
-    assert "Tag & Date History" not in p  # no `now` passed -> bot-created page stays historyless
-
-
-def test_task_properties_with_now_includes_history_entry():
-    # bot-created tasks must be born history-compliant (else the daily reconciler
-    # immediately flags them) - passing `now` adds the initial audit-log entry in
-    # the exact format rules.py's evaluate() uses for the same rule.
-    now = datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc)  # 08:00 America/New_York (EDT)
-    p = task_properties("T", date(2026, 11, 2), ("Chore", "Errand"), "High", now=now)
-    entry = p["Tag & Date History"]["rich_text"][0]["text"]["content"]
-    assert entry == "[2026-08-20 08:00] --- Tags: [Chore, Errand], Due Date: 2026-11-02"
 
 
 def test_headers():
