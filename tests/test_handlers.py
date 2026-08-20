@@ -75,6 +75,22 @@ def test_non_page_entity_skipped():
     assert out == ["skipped: non-page entity"]
 
 
+def test_non_data_source_parent_skipped():
+    fake = FakeNotion(
+        {
+            "p": {
+                "id": "p",
+                "url": "u",
+                "parent": {"type": "page_id", "page_id": "x"},
+                "properties": {},
+            }
+        }
+    )
+    out = handle_event(event("p"), fake, NOW, bot_id="me")
+    assert out == ["skipped: non-data-source parent"]
+    assert fake.updated == [] and fake.created == []
+
+
 def test_unwatched_db_skipped():
     fake = FakeNotion(
         {"p": {"id": "p", "url": "u", "parent": {"data_source_id": R.GIFTS}, "properties": {}}}

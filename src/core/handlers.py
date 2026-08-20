@@ -63,7 +63,9 @@ def handle_event(event, notion, now, bot_id):
         return ["skipped: non-page entity"]
 
     page = notion.get_page(event["entity"]["id"])
-    ds = page["parent"]["data_source_id"]
+    ds = page["parent"].get("data_source_id")
+    if not ds:
+        return ["skipped: non-data-source parent"]
     if ds not in EVENT_DBS:
         return [f"skipped: unwatched db {ds}"]
 
