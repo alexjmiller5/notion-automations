@@ -44,7 +44,7 @@ class Violation:
     fix: dict | None
 
 
-def _title(props):
+def title_of(props):
     for p in props.values():
         if "title" in p:
             return "".join(t.get("plain_text", "") for t in p["title"])
@@ -75,7 +75,7 @@ _SLUGS = {
 
 def evaluate(data_source_id, page, now, created=False):
     props, out = page["properties"], []
-    pid, purl, ptitle = page["id"], page.get("url", ""), _title(props)
+    pid, purl, ptitle = page["id"], page.get("url", ""), title_of(props)
     slug = _SLUGS.get(data_source_id, "db")
 
     def viol(rule, fix):
