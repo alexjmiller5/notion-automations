@@ -1,4 +1,4 @@
-"""Run the daily dispatch logic locally, no Modal — for a dry-run sanity
+"""Run the daily dispatch logic locally, no Modal - for a dry-run sanity
 check before deploying. Skips the reconciler's state persistence (no Modal
 Dict outside the cloud); logs a fresh window each run.
 
