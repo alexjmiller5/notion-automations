@@ -1,0 +1,134 @@
+"""Pure event rules: page JSON in, violations/fixes out. Mirrors the native
+Notion automations captured in the inventory page (3c203953a8af818b998ff5a152078c8a).
+
+Status/property names below are pinned against scripts/pin_schema.py output
+(see task-3-report.md), not guessed - see task-6-report.md for the full diff
+against the original brief guesses.
+"""
+
+from dataclasses import dataclass
+from zoneinfo import ZoneInfo
+
+from core import registry as R
+
+NY = ZoneInfo("America/New_York")
+
+# (status property, date property, statuses that SET, statuses that CLEAR)
+TIMESTAMP_RULES = {
+    R.TASKS: [("Status", "Completed Date", {"Completed"}, {"To Do", "In Progress"})],
+    R.PROJECTS: [("Status", "Completed Date", {"Completed"}, {"To Do", "In progress"})],
+    R.BOOKS: [("Status", "Date Read", {"Finished"}, {"Not Started", "In Progress"})],
+    R.YOUTUBE: [("Status", "Date Watched", {"Watched"}, {"To Watch", "In Progress"})],
+    R.TV: [("Status", "Date Watched", {"Finished"}, {"Not Started", "In Progress"})],
+    R.MOVIES: [("Status", "Date Watched", {"Finished"}, {"Not Started", "In Progress"})],
+    R.ARTICLES: [("Status", "Read Date", {"Done"}, {"Not started", "In progress"})],
+    # Outcome has no "Complete"/"To-do" options; "reviewed" = triaged away from
+    # "To Review" into any terminal category (see task-6-report.md).
+    R.SYNAPSE: [
+        (
+            "Outcome",
+            "Date Reviewed",
+            {"User Error", "Test Execution", "Bug", "Failed Extraction", "Successful Flow"},
+            {"To Review"},
+        )
+    ],
+}
+
+
+@dataclass(frozen=True)
+class Violation:
+    rule: str
+    page_id: str
+    page_title: str
+    page_url: str
+    fix: dict | None
+
+
+def _title(props):
+    for p in props.values():
+        if "title" in p:
+            return "".join(t.get("plain_text", "") for t in p["title"])
+    return "(untitled)"
+
+
+def _status(props, prop):  # tolerate select-typed status props
+    v = props.get(prop) or {}
+    inner = v.get("status") or v.get("select") or {}
+    return (inner or {}).get("name", "")
+
+
+def _date_set(props, prop):
+    return bool((props.get(prop) or {}).get("date"))
+
+
+_SLUGS = {
+    R.TASKS: "tasks",
+    R.PROJECTS: "projects",
+    R.BOOKS: "books",
+    R.YOUTUBE: "youtube",
+    R.TV: "tv",
+    R.MOVIES: "movies",
+    R.ARTICLES: "articles",
+    R.SYNAPSE: "synapse",
+}
+
+
+def evaluate(data_source_id, page, now, created=False):
+    props, out = page["properties"], []
+    pid, purl, ptitle = page["id"], page.get("url", ""), _title(props)
+    slug = _SLUGS.get(data_source_id, "db")
+
+    def viol(rule, fix):
+        out.append(Violation(rule, pid, ptitle, purl, fix))
+
+    for status_prop, date_prop, set_on, clear_on in TIMESTAMP_RULES.get(data_source_id, []):
+        s = _status(props, status_prop)
+        if s in set_on and not _date_set(props, date_prop):
+            viol(
+                f"{slug}-{date_prop.lower().replace(' ', '-')}-set",
+                {date_prop: {"date": {"start": now.astimezone(NY).isoformat()}}},
+            )
+        elif s in clear_on and _date_set(props, date_prop):
+            viol(f"{slug}-{date_prop.lower().replace(' ', '-')}-clear", {date_prop: {"date": None}})
+
+    if data_source_id == R.TASKS:
+        if not _date_set(props, "Due Date"):
+            viol(
+                "tasks-default-due",
+                {"Due Date": {"date": {"start": now.astimezone(NY).date().isoformat()}}},
+            )
+        if not (props.get("Tags") or {}).get("multi_select"):
+            viol("tasks-default-tags", {"Tags": {"multi_select": [{"name": "Chore"}]}})
+        if not (props.get("Priority") or {}).get("select"):
+            viol("tasks-default-priority", {"Priority": {"select": {"name": "High"}}})
+        history = "".join(
+            t.get("plain_text", "")
+            for t in (props.get("Tag & Date History") or {}).get("rich_text", [])
+        )
+        if not history:
+            tags = [t["name"] for t in (props.get("Tags") or {}).get("multi_select", [])]
+            due = ((props.get("Due Date") or {}).get("date") or {}).get("start", "None")
+            stamp = now.astimezone(NY).strftime("%Y-%m-%d %H:%M")
+            entry = f"[{stamp}] --- Tags: [{', '.join(tags)}], Due Date: {due[:10]}"
+            viol(
+                "tasks-history",
+                {"Tag & Date History": {"rich_text": [{"text": {"content": entry}}]}},
+            )
+
+    if data_source_id == R.SYNAPSE:
+        remedied = (props.get("Remedied?") or {}).get("checkbox", False)
+        if remedied and not _date_set(props, "Date Remedied"):
+            viol(
+                "synapse-date-remedied-set",
+                {"Date Remedied": {"date": {"start": now.astimezone(NY).isoformat()}}},
+            )
+        elif not remedied and _date_set(props, "Date Remedied"):
+            viol("synapse-date-remedied-clear", {"Date Remedied": {"date": None}})
+        if created:
+            exec_ok = _status(props, "Code Execution") == "Success"
+            cat = ((props.get("Category") or {}).get("select") or {}).get("name", "")
+            desired = "Successful Flow" if (exec_ok and cat == "bookmarks") else "To Review"
+            if _status(props, "Outcome") != desired:
+                viol("synapse-outcome", {"Outcome": {"status": {"name": desired}}})
+
+    return out
