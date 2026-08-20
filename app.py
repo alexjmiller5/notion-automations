@@ -24,14 +24,40 @@ image = (
 
 secrets = [modal.Secret.from_name(APP_NAME)]
 
+# High-water mark for the reconciler's "since" window, persisted across runs.
+state = modal.Dict.from_name(f"{APP_NAME}-state", create_if_missing=True)
 
-# daily() gets wired to src/core/registry.py once the dispatcher lands
-# (later task) — the daily cron dispatcher.
 
+@app.function(image=image, secrets=secrets, schedule=modal.Cron("30 11 * * *"), timeout=600)
+def daily():
+    """Recurring-task dispatch, cert-renewal check, then the compliance sweep
+    over everything edited since the last run (state carries the high-water
+    mark so a missed/failed webhook delivery still gets caught)."""
+    from datetime import datetime, timedelta, timezone
+    from zoneinfo import ZoneInfo
 
-@app.function(image=image, secrets=secrets, schedule=modal.Cron("30 9 * * *"))
-def daily() -> dict:
-    raise NotImplementedError("cron dispatch not yet wired to core.registry")
+    from core.asc import developer_id_expiry
+    from core.config import Settings
+    from core.dispatcher import check_cert, dispatch
+    from core.handlers import EVENT_DBS
+    from core.notion import NotionClient
+    from core.reconciler import reconcile
+
+    s = Settings()
+    notion = NotionClient(s.notion_api_token, dry_run=s.dry_run)
+    now = datetime.now(timezone.utc)
+    today = now.astimezone(ZoneInfo("America/New_York")).date()
+
+    for line in dispatch(notion, today):
+        print(line)
+    print(check_cert(notion, developer_id_expiry(s), today))
+
+    since = state.get("high_water") or (now - timedelta(days=1)).isoformat()
+    logs, mark = reconcile(notion, EVENT_DBS, since, now)
+    for line in logs:
+        print(line)
+    if not s.dry_run:
+        state["high_water"] = mark
 
 
 @app.function(image=image, secrets=secrets, min_containers=0)
