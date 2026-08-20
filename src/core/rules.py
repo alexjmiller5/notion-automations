@@ -92,12 +92,11 @@ def evaluate(data_source_id, page, now, created=False):
             viol(f"{slug}-{date_prop.lower().replace(' ', '-')}-clear", {date_prop: {"date": None}})
 
     if data_source_id == R.TASKS:
+        due_today = now.astimezone(NY).date().isoformat()
         if not _date_set(props, "Due Date"):
-            viol(
-                "tasks-default-due",
-                {"Due Date": {"date": {"start": now.astimezone(NY).date().isoformat()}}},
-            )
-        if not (props.get("Tags") or {}).get("multi_select"):
+            viol("tasks-default-due", {"Due Date": {"date": {"start": due_today}}})
+        existing_tags = [t["name"] for t in (props.get("Tags") or {}).get("multi_select", [])]
+        if not existing_tags:
             viol("tasks-default-tags", {"Tags": {"multi_select": [{"name": "Chore"}]}})
         if not (props.get("Priority") or {}).get("select"):
             viol("tasks-default-priority", {"Priority": {"select": {"name": "High"}}})
@@ -106,8 +105,10 @@ def evaluate(data_source_id, page, now, created=False):
             for t in (props.get("Tag & Date History") or {}).get("rich_text", [])
         )
         if not history:
-            tags = [t["name"] for t in (props.get("Tags") or {}).get("multi_select", [])]
-            due = ((props.get("Due Date") or {}).get("date") or {}).get("start", "None")
+            # effective (post-default) values, not raw props - the audit log
+            # must reflect the state as-written, including defaults just applied
+            tags = existing_tags or ["Chore"]
+            due = ((props.get("Due Date") or {}).get("date") or {}).get("start") or due_today
             stamp = now.astimezone(NY).strftime("%Y-%m-%d %H:%M")
             entry = f"[{stamp}] --- Tags: [{', '.join(tags)}], Due Date: {due[:10]}"
             viol(

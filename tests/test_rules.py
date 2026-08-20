@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from core import registry as R
-from core.rules import evaluate
+from core.rules import NY, evaluate
 
 # 2026-08-20 12:00 UTC == 2026-08-20 08:00 America/New_York (EDT, UTC-4)
 NOW = datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc)
@@ -98,6 +98,28 @@ def test_tasks_history_entry_exact_format():
     rules = {x.rule: x for x in evaluate(R.TASKS, p, NOW)}
     entry = rules["tasks-history"].fix["Tag & Date History"]["rich_text"][0]["text"]["content"]
     assert entry == "[2026-08-20 08:00] --- Tags: [Chore], Due Date: 2026-08-20"
+
+
+def test_tasks_history_uses_effective_post_default_values():
+    # brand-new task: empty Tags, empty Due Date, empty history - the history
+    # entry must reflect the defaults tasks-default-tags/tasks-default-due
+    # just computed, not the raw (empty) props
+    p = page(
+        R.TASKS,
+        {
+            "Status": status("To Do"),
+            "Completed Date": dateval(None),
+            "Due Date": dateval(None),
+            "Tags": {"multi_select": []},
+            "Priority": {"select": {"name": "High"}},
+            "Tag & Date History": {"rich_text": []},
+            "Name": {"title": [{"plain_text": "T"}]},
+        },
+    )
+    rules = {x.rule: x for x in evaluate(R.TASKS, p, NOW)}
+    stamp = NOW.astimezone(NY).strftime("%Y-%m-%d %H:%M")
+    entry = rules["tasks-history"].fix["Tag & Date History"]["rich_text"][0]["text"]["content"]
+    assert entry == f"[{stamp}] --- Tags: [Chore], Due Date: 2026-08-20"
 
 
 # --- Books ---
