@@ -24,24 +24,20 @@ See `AGENTS.md` for the architecture rule and stack.
 
 ## Bootstrap (one-time, manual)
 
-1. `op-project-bootstrap .env.tpl --repo alexjmiller5/notion-automations` -
+1. Have a Modal API token pair ready to paste (`uv run modal token new`
+   locally - which also authenticates this machine for `just dev` /
+   `just run` - then copy `token_id` / `token_secret` from `~/.modal.toml`).
+2. `op-project-bootstrap .env.tpl --repo alexjmiller5/notion-automations` -
    creates the `Notion Automations` vault, the `Notion Automations ENV` item
    (one field per `.env.tpl` line - `NOTION_API_TOKEN`, `NOTION_WEBHOOK_SECRET`
-   left `CHANGEME` until the webhook step below fills it in), the read-only
-   `notion-automations-ci` service account, and the repo's
+   left `CHANGEME` until the webhook step below fills it in), AND the
+   `Modal Notion Automations` deploy-token item (bootstrap scans
+   `.github/workflows/*.yml` for `op://` refs, so it prompts for
+   `token-id` / `token-secret` - paste the pair from step 1), plus the
+   read-only `notion-automations-ci` service account and the repo's
    `OP_SERVICE_ACCOUNT_TOKEN` GitHub secret. `ASC_*` fields resolve against
    the pre-existing shared `Apple Signing` vault - nothing to create there.
-2. Create the Modal deploy-token item by hand (not covered by
-   `op-project-bootstrap` - it only reads `.env.tpl`, and this item is
-   referenced from `deploy.yml` instead, matching `birthday-reminders`'
-   pattern): in the `Notion Automations` vault, an item titled
-   `Modal Notion Automations` with fields `token-id` / `token-secret`
-   (`uv run modal token new` locally, then copy the pair from
-   `~/.modal.toml` - or generate a fresh deploy-scoped token in the Modal
-   dashboard).
-3. `uv run modal token new` - authenticate this machine with Modal, for
-   local `just dev` / `just run`.
-4. Create the webhook subscription (Notion has no API for this - integration
+3. Create the webhook subscription (Notion has no API for this - integration
    settings only):
    - Deploy first (push to `main`) so `notion_webhook`'s URL exists.
    - `notion.so/profile/integrations` -> the integration -> **Webhooks**
