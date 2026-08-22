@@ -1,16 +1,16 @@
 # AGENTS.md
 
 All of Alex's native Notion automations, codified as code and deployed on
-Modal: a daily cron dispatcher (recurring tasks, cert-renewal check,
-compliance reconciler) + a Notion webhook receiver (event-triggered rules).
+Modal: a daily cron dispatcher (recurring tasks, compliance reconciler) + a
+Notion webhook receiver (event-triggered rules).
 
 ## Architecture rule (the one that matters)
 
 **Business logic lives in `src/core/` as plain Python.** Only `app.py`
 imports `modal` - it is the deployment shim (image, secrets, endpoints,
-schedules). Within `src/core/`, only `notion.py` (Notion API) and `asc.py`
-(App Store Connect API) do network I/O - every other module (`registry.py`,
-`planner.py`, `rules.py`, `reconciler.py`) is pure functions: dataclasses and
+schedules). Within `src/core/`, only `notion.py` (Notion API) does network
+I/O - every other module (`registry.py`, `planner.py`, `rules.py`,
+`reconciler.py`) is pure functions: dataclasses and
 dicts in, decisions out. This keeps the logic trivially testable and
 portable - no backend abstraction, no `TaskBackend` interface; a future
 migration off Notion rewrites `notion.py` and the event rules, the planner
@@ -31,8 +31,8 @@ and registry-as-intent carry over as-is.
 
 ## Stack
 
-uv · pydantic-settings (env config) · httpx (Notion + ASC APIs) · pyjwt +
-cryptography (ASC JWT auth) · fastapi (webhook `Request`) · pytest · ruff.
+uv · pydantic-settings (env config) · httpx (Notion API) · fastapi (webhook
+`Request`) · pytest · ruff.
 Config comes from env vars only: Modal Secret in the cloud, `op run` locally.
 `.env.tpl` is the canonical secrets manifest (op:// refs, committed).
 Instantiate `Settings()` inside functions, never at import time.

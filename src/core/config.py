@@ -10,7 +10,4 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     notion_api_token: str
     notion_webhook_secret: str = ""  # empty until subscription created
-    asc_key_id: str = ""
-    asc_issuer_id: str = ""
-    asc_p8_base64: str = ""
     dry_run: bool = False

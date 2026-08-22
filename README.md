@@ -2,9 +2,9 @@
 
 All of Alex's native Notion automations, codified as code and deployed on
 [Modal](https://modal.com): a daily cron dispatcher (recurring tasks,
-Developer ID cert-renewal check, compliance reconciler) plus a Notion
-webhook receiver (event-triggered rules). No Dockerfile, no Terraform - all
-infrastructure lives in `app.py` as code.
+compliance reconciler) plus a Notion webhook receiver (event-triggered
+rules). No Dockerfile, no Terraform - all infrastructure lives in `app.py`
+as code.
 
 ## Layout
 
@@ -13,7 +13,6 @@ app.py                 Modal shim - image, secrets, endpoints, schedule
 src/core/               business logic (plain Python, portable)
 src/core/registry.py   the automations catalog (recurring specs + event rules)
 src/core/notion.py     Notion API client - the only module that talks to Notion
-src/core/asc.py        App Store Connect API client - cert-expiry checks
 scripts/run_local.py   dry-run the dispatch logic with no Modal at all
 tests/                  pytest
 .env.tpl                secrets manifest (1Password op:// refs, committed)
@@ -33,8 +32,7 @@ See `AGENTS.md` for the architecture rule and stack.
    `scripts/provision.py`, which copies the canonical workspace token from
    the AI Agent vault - no prompt, nothing touches disk), plus the read-only
    `notion-automations-ci` service account and the repo's
-   `OP_SERVICE_ACCOUNT_TOKEN` GitHub secret. `ASC_*` fields resolve against
-   the pre-existing shared `Apple Signing` vault - nothing to create there.
+   `OP_SERVICE_ACCOUNT_TOKEN` GitHub secret.
    (Local `just dev` / `just run` need no `~/.modal.toml` either - the
    machine-wide `modal` wrapper injects the same 1P-held token.)
 2. Create the webhook subscription (Notion has no API for this - integration
@@ -69,9 +67,8 @@ automation off only after its codified replacement has been observed
 working correctly (a cron run for schedule-triggered ones, a live webhook
 delivery for event-triggered ones):
 
-**Tasks DB - schedule-triggered** (`core.registry.RECURRING` + the cert
-check, all fire from the one `daily()` cron - switch off together after the
-first clean run):
+**Tasks DB - schedule-triggered** (`core.registry.RECURRING`, all fire from
+the one `daily()` cron - switch off together after the first clean run):
 - [ ] Recertify Touchless ID
 - [ ] Redeem Credit Card Rewards
 - [ ] Wipe Down Screens

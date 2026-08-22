@@ -11,9 +11,8 @@ importable without it)
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from core.asc import developer_id_expiry
 from core.config import Settings
-from core.dispatcher import check_cert, dispatch
+from core.dispatcher import dispatch
 from core.handlers import EVENT_DBS
 from core.notion import NotionClient
 from core.reconciler import reconcile
@@ -27,7 +26,6 @@ def main() -> None:
 
     for line in dispatch(notion, today):
         print(line)
-    print(check_cert(notion, developer_id_expiry(s), today))
 
     since = (now - timedelta(days=1)).isoformat()
     logs, _mark = reconcile(notion, EVENT_DBS, since, now)

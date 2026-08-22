@@ -30,15 +30,14 @@ state = modal.Dict.from_name(f"{APP_NAME}-state", create_if_missing=True)
 
 @app.function(image=image, secrets=secrets, schedule=modal.Cron("30 11 * * *"), timeout=600)
 def daily():
-    """Recurring-task dispatch, cert-renewal check, then the compliance sweep
-    over everything edited since the last run (state carries the high-water
-    mark so a missed/failed webhook delivery still gets caught)."""
+    """Recurring-task dispatch, then the compliance sweep over everything
+    edited since the last run (state carries the high-water mark so a
+    missed/failed webhook delivery still gets caught)."""
     from datetime import datetime, timedelta, timezone
     from zoneinfo import ZoneInfo
 
-    from core.asc import developer_id_expiry
     from core.config import Settings
-    from core.dispatcher import check_cert, dispatch
+    from core.dispatcher import dispatch
     from core.handlers import EVENT_DBS
     from core.notion import NotionClient
     from core.reconciler import reconcile
@@ -50,10 +49,6 @@ def daily():
 
     for line in dispatch(notion, today):
         print(line)
-    try:
-        print(check_cert(notion, developer_id_expiry(s), today))
-    except Exception as e:
-        print(f"cert check failed: {e}")
 
     since = state.get("high_water") or (now - timedelta(days=1)).isoformat()
     logs, mark = reconcile(notion, EVENT_DBS, since, now)
