@@ -5,7 +5,7 @@ default:
 
 # Dev: live-reloading deploy of app.py against real Modal infra
 dev:
-    uv run modal serve app.py
+    modal serve app.py
 
 test:
     uv run pytest
@@ -19,21 +19,23 @@ fmt:
 
 # Stream logs from the deployed app
 logs:
-    uv run modal app logs notion-automations
+    modal app logs notion-automations
 
 # Push .env.tpl secrets into the Modal secret store (no plaintext touches disk;
-# the modal CLI rejects process-substitution FIFOs, hence the stdin script)
+# the modal CLI rejects process-substitution FIFOs, hence the stdin script).
+# This one calls the Modal SDK rather than the CLI, so the `modal` PATH wrapper
+# can't inject auth for it - op run does it instead.
 sync-secrets:
-    op inject -i .env.tpl | uv run scripts/sync_secrets.py notion-automations
+    MODAL_TOKEN_ID=op://4eeyrkqibibn7k4j6rz2fbzvxm/2sfxybjpv3c3ohzxhf5qeken4a/token_id MODAL_TOKEN_SECRET=op://4eeyrkqibibn7k4j6rz2fbzvxm/2sfxybjpv3c3ohzxhf5qeken4a/token_secret op run --no-masking -- bash -c "op inject -i .env.tpl | uv run scripts/sync_secrets.py notion-automations"
 
 deploy: test sync-secrets
-    uv run modal deploy app.py
+    modal deploy app.py
 
 # --- project-specific recipes below (one-offs live in scripts/, run directly) ---
 
 # Trigger daily() once against real Modal infra (not deployed - runs in a temp container)
 run:
-    op run --env-file=.env.tpl -- uv run modal run app.py::daily
+    op run --env-file=.env.tpl -- modal run app.py::daily
 
 # Same dispatch logic, no Modal at all - forced DRY_RUN so nothing writes to Notion
 # (PYTHONPATH=src: plain `uv run` doesn't apply pytest's pythonpath config,
