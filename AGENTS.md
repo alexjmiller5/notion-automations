@@ -6,7 +6,7 @@ Notion webhook receiver (event-triggered rules).
 
 ## Architecture rule (the one that matters)
 
-**Business logic lives in `src/core/` as plain Python.** Only `app.py`
+**Business logic lives in** **`src/core/`** **as plain Python.** Only `app.py`
 imports `modal` - it is the deployment shim (image, secrets, endpoints,
 schedules). Within `src/core/`, only `notion.py` (Notion API) does network
 I/O - every other module (`registry.py`, `planner.py`, `rules.py`,
@@ -16,17 +16,17 @@ portable - no backend abstraction, no `TaskBackend` interface; a future
 migration off Notion rewrites `notion.py` and the event rules, the planner
 and registry-as-intent carry over as-is.
 
-- `src/core/registry.py` (coming in a later task) is THE automations catalog:
+* `src/core/registry.py` (coming in a later task) is THE automations catalog:
   every recurring spec and event rule declared in one reviewable file.
   `app.py`'s cron and webhook entrypoints dispatch through it.
-- The `DRY_RUN` env var (`Settings.dry_run`) gates all Notion writes -
+* The `DRY_RUN` env var (`Settings.dry_run`) gates all Notion writes -
   when true, automations run their full logic and log what they would have
   written instead of calling the API.
-- Cron: Modal is the PREFERRED home for schedules - but the Starter plan
+* Cron: Modal is the PREFERRED home for schedules - but the Starter plan
   allows **5 deployed crons across ALL apps**, so track the budget. This app
   uses one slot. Overflow goes to GHA cron or CF Cron Triggers (see the
   `infra` skill).
-- Webhook endpoint is public (Notion can't send Modal proxy-auth headers) -
+* Webhook endpoint is public (Notion can't send Modal proxy-auth headers) -
   authenticated instead by verifying the `X-Notion-Signature` HMAC.
 
 ## Stack
@@ -34,7 +34,7 @@ and registry-as-intent carry over as-is.
 uv · pydantic-settings (env config) · httpx (Notion API) · fastapi (webhook
 `Request`) · pytest · ruff.
 Config comes from env vars only: Modal Secret in the cloud, `op run` locally.
-`.env.tpl` is the canonical secrets manifest (op:// refs, committed).
+`.env.tpl` is the canonical secrets manifest (op\:// refs, committed).
 Instantiate `Settings()` inside functions, never at import time.
 
 ## Commands
@@ -42,15 +42,15 @@ Instantiate `Settings()` inside functions, never at import time.
 Standard verb set (see global AGENTS.md) - the justfile is the interface,
 not a script catalog; one-offs go in `scripts/` and run directly.
 
-| Command | Purpose |
-|---|---|
-| `just dev` | Live-reload dev against real Modal infra (`modal serve`) |
-| `just test` / `just check` / `just fmt` | pytest / ruff read-only / ruff fix |
-| `just logs` | Stream deployed-app logs |
-| `just sync-secrets` | Push `.env.tpl` → Modal secret store |
-| `just deploy` | test + sync-secrets + `modal deploy` - CI's job, not yours (below) |
+| Command                                 | Purpose                                                            |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| `just dev`                              | Live-reload dev against real Modal infra (`modal serve`)           |
+| `just test` / `just check` / `just fmt` | pytest / ruff read-only / ruff fix                                 |
+| `just logs`                             | Stream deployed-app logs                                           |
+| `just sync-secrets`                     | Push `.env.tpl` → Modal secret store                               |
+| `just deploy`                           | test + sync-secrets + `modal deploy` - CI's job, not yours (below) |
 
-**Deploying = commit + push to `main`.** The GHA deploy workflow runs tests,
+**Deploying = commit + push to** **`main`.** The GHA deploy workflow runs tests,
 syncs secrets, and deploys - never run `just deploy` locally unless there's a
 legitimate stated reason. After pushing, verify the run with the gh CLI
 (`gh run watch <id> --exit-status`; on failure `gh run view <id> --log-failed`);

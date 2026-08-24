@@ -60,7 +60,7 @@ See `AGENTS.md` for the architecture rule and stack.
 ## Cutover checklist
 
 This app runs live alongside the native Notion automations it replaces.
-Full inventory (41 automations, one row each) is the Notion page
+Full inventory (43 automations, one row each) is the Notion page
 [Notion Tasks DB Automations - Full Inventory (2026-08-19)](https://www.notion.so/3c203953-a8af-818b-998f-f5a152078c8a) -
 this checklist just groups them by DB as the shutdown order. Turn an
 automation off only after its codified replacement has been observed
@@ -131,3 +131,7 @@ real edit before disabling):
 **Articles**:
 - [ ] Add Read Date
 - [ ] Remove Read Date
+
+**Podcast Episodes**:
+- [ ] Add Date Listened To
+- [ ] Remove Date Listened To
