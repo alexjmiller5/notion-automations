@@ -12,15 +12,27 @@ from core.rules import Violation, evaluate, title_of
 
 
 def reconcile(notion, dbs, since_iso, now):
-    logs, seen = [], set()
+    """Returns (log lines, new high-water mark). The mark is None when any
+    database could not be swept - the caller must then leave the window open
+    and fail the run, so the gap is retried and surfaced rather than skipped.
+    One unreachable DB (typically not connected to the integration: Notion
+    answers 404, not 403, for anything it can't see) must not cost us the
+    sweep of every other DB.
+    """
+    logs, seen, failed = [], set(), False
     for ds in sorted(dbs):
-        pages = notion.query(
-            ds,
-            filter={
-                "timestamp": "last_edited_time",
-                "last_edited_time": {"on_or_after": since_iso},
-            },
-        )
+        try:
+            pages = notion.query(
+                ds,
+                filter={
+                    "timestamp": "last_edited_time",
+                    "last_edited_time": {"on_or_after": since_iso},
+                },
+            )
+        except Exception as exc:
+            failed = True
+            logs.append(f"SWEEP FAILED for data source {ds}: {exc}")
+            continue
         for page in pages:
             if page["id"] in seen:
                 continue
@@ -73,4 +85,4 @@ def reconcile(notion, dbs, since_iso, now):
                 ),
             )
             logs.append(f"flagged {v0.page_title}: {rules}")
-    return logs, now.isoformat()
+    return logs, (None if failed else now.isoformat())

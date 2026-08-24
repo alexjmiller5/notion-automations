@@ -142,3 +142,33 @@ def test_trips_matching_note_title_creates_nothing():
     )
     logs, _ = reconcile(fake, frozenset({R.TRIPS}), "2026-08-19T12:00:00+00:00", NOW)
     assert fake.created == []
+
+
+class FlakyNotion(FakeNotion):
+    """One data source is unreachable - Notion answers 404 for DBs an
+    integration isn't connected to (it hides their existence)."""
+
+    def __init__(self, pages_by_ds, broken_ds, pages_by_id=None):
+        super().__init__(pages_by_ds, pages_by_id)
+        self.broken = broken_ds
+
+    def query(self, ds, filter=None, **kw):
+        if ds == self.broken:
+            raise RuntimeError("Client error '404 Not Found'")
+        return super().query(ds, filter=filter, **kw)
+
+
+def test_unreachable_db_does_not_abort_the_other_sweeps():
+    fake = FlakyNotion({R.BOOKS: [bad_book()]}, broken_ds=R.PROJECTS)
+    logs, mark = reconcile(fake, frozenset({R.PROJECTS, R.BOOKS}), "2026-08-19T12:00:00+00:00", NOW)
+    # Books was still swept and flagged despite Projects blowing up first
+    assert len(fake.created) == 1
+    assert any("SWEEP FAILED" in line and R.PROJECTS in line for line in logs)
+    # ...and the window stays open so the missed DB is retried next run
+    assert mark is None
+
+
+def test_all_reachable_returns_a_mark():
+    fake = FlakyNotion({R.BOOKS: [bad_book()]}, broken_ds="not-a-real-ds")
+    _, mark = reconcile(fake, frozenset({R.BOOKS}), "2026-08-19T12:00:00+00:00", NOW)
+    assert mark == NOW.isoformat()

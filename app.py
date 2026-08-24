@@ -54,6 +54,11 @@ def daily():
     logs, mark = reconcile(notion, EVENT_DBS, since, now)
     for line in logs:
         print(line)
+    if mark is None:
+        # Some DB was unreachable: keep the window open so the next run
+        # re-sweeps it, and fail loudly (Modal emails on a failed schedule)
+        # rather than silently under-reporting compliance.
+        raise RuntimeError("reconciler could not sweep every database - see SWEEP FAILED above")
     if not s.dry_run:
         state["high_water"] = mark
 

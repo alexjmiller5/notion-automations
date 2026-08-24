@@ -47,7 +47,9 @@ def mint() -> None:
     CACHE.touch(mode=0o600)
     subprocess.run(
         [*modal_bin(), "token", "new", "--profile", f"{PROJECT}-ci", "--no-activate"],
-        env=env, check=True, stdout=sys.stderr,
+        env=env,
+        check=True,
+        stdout=sys.stderr,
     )
 
 
