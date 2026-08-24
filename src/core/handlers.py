@@ -31,6 +31,7 @@ EVENT_DBS = frozenset(
         R.TV,
         R.MOVIES,
         R.ARTICLES,
+        R.PODCASTS,
     }
 )
 

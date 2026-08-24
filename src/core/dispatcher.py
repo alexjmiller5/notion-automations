@@ -1,17 +1,57 @@
 """Daily dispatcher: evaluate recurring specs, create what's due."""
 
+from dataclasses import replace
 from datetime import timedelta
 
 from core.notion import task_properties
 from core.planner import next_occurrence
-from core.registry import GIFTS, PEOPLE_IDS, RECURRING, TASKS
+from core.registry import CHRISTMAS_RECIPIENTS, GIFTS, RECURRING, TASKS, TaskTemplate
+from core.rules import title_of
 
-_PERSON_NAMES = {person_id: name for name, person_id in PEOPLE_IDS.items()}
+
+def _hydrate_recipients(spec, notion):
+    """Build the Christmas templates from live Notion data.
+
+    People's names are personal data and are not stored in this repo - the
+    registry holds page ids, so the names come from Notion at run time. Returns
+    the spec with templates/match_titles filled in, plus each recipient's full
+    name for the Gifts page title.
+    """
+    templates, full_names = [], {}
+    for person_id in CHRISTMAS_RECIPIENTS:
+        full = title_of(notion.get_page(person_id)["properties"])
+        full_names[person_id] = full
+        name = full.split()[0]
+        templates.append(
+            TaskTemplate(
+                title=f"Brainstorm and come up with an idea for {name}'s Christmas Gift",
+                tags=("Gifts",),
+                priority="High",
+            )
+        )
+        templates.append(
+            TaskTemplate(
+                title=f"Buy {name}'s Christmas Gift",
+                tags=("Gifts",),
+                priority="High",
+                due_offset_days=30,
+                blocked_by_prev=True,
+            )
+        )
+    hydrated = replace(
+        spec,
+        templates=tuple(templates),
+        match_titles=tuple(t.title for t in templates),
+    )
+    return hydrated, full_names
 
 
 def dispatch(notion, today):
     log = []
     for spec in RECURRING:
+        full_names = {}
+        if spec.gift_recipients:
+            spec, full_names = _hydrate_recipients(spec, notion)
         existing = notion.snapshots(TASKS, spec.match_titles)
         occ = next_occurrence(spec, existing, today)
         if not occ:
@@ -41,7 +81,7 @@ def dispatch(notion, today):
             prev_id = notion.create_page(TASKS, props)["id"]
             log.append(f"{spec.key}: created '{t.title}' due {due}")
         for person_id in spec.gift_recipients:
-            name = _PERSON_NAMES.get(person_id, "Unknown")
+            name = full_names[person_id]
             notion.create_page(
                 GIFTS,
                 {

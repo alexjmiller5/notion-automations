@@ -345,3 +345,31 @@ def test_synapse_to_review_clears_date_reviewed():
     p = _synapse_page(Outcome=status("To Review"), **{"Date Reviewed": dateval("2026-08-01")})
     v = evaluate(R.SYNAPSE, p, NOW)
     assert any(x.rule == "synapse-date-reviewed-clear" for x in v)
+
+
+def test_podcasts_finished_sets_date_listened_to():
+    p = page(
+        R.PODCASTS,
+        {
+            "Status": status("Finished"),
+            "Date Listened To": dateval(None),
+            "Episode Title": {"title": [{"plain_text": "Ep 1"}]},
+        },
+    )
+    v = evaluate(R.PODCASTS, p, NOW)
+    assert [x.rule for x in v] == ["podcasts-date-listened-to-set"]
+    assert v[0].fix["Date Listened To"]["date"]["start"].startswith("2026-08-20")
+
+
+def test_podcasts_reopened_clears_date_listened_to():
+    p = page(
+        R.PODCASTS,
+        {
+            "Status": status("In Progress"),
+            "Date Listened To": dateval("2026-08-01"),
+            "Episode Title": {"title": [{"plain_text": "Ep 1"}]},
+        },
+    )
+    v = evaluate(R.PODCASTS, p, NOW)
+    assert [x.rule for x in v] == ["podcasts-date-listened-to-clear"]
+    assert v[0].fix["Date Listened To"]["date"] is None

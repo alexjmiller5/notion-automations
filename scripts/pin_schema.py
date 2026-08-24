@@ -20,6 +20,7 @@ DBS = {  # name -> data_source_id (copy the Global Constraints block)
     "TV Shows": "507e4205-3476-4d19-9e50-584c9ee96c49",
     "Movies": "4eb907d5-1be3-41e3-be31-9afd33510a1f",
     "Articles": "1c703953-a8af-8062-a379-000b8e250413",
+    "Podcast Episodes": "cebfc967-c37d-4dbf-a3d0-795b8e971ab7",
     "Gifts": "0c39fffe-c8c2-43a5-af03-0a378c682c1c",
 }
 for name, ds in DBS.items():
@@ -30,11 +31,3 @@ for name, ds in DBS.items():
         if p["type"] == "status":
             extra = " options=" + ",".join(o["name"] for o in p["status"]["options"])
         print(f"  {pname} ({p['type']}){extra}")
-PEOPLE = "1a803953-a8af-80ab-824d-000bfe407316"
-for person in ["<person-1>", "<person-2>", "<person-3>", "<person-4>", "<person-5>"]:
-    r = httpx.post(
-        f"https://api.notion.com/v1/data_sources/{PEOPLE}/query",
-        headers=H,
-        json={"filter": {"property": "Name", "title": {"equals": person}}},
-    ).json()
-    print(person, "->", [p["id"] for p in r["results"]])
