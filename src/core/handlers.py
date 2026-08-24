@@ -36,6 +36,24 @@ EVENT_DBS = frozenset(
 )
 
 
+def handshake_token(payload, secret):
+    """The one-time subscription handshake token, or None.
+
+    Notion posts this UNSIGNED (it is the secret being handed over, so there is
+    nothing to sign with yet), which makes it the only unauthenticated path in
+    the endpoint. It is therefore honored only while no secret is configured:
+    once one is, an unsigned handshake must be refused, or anyone could spray
+    plausible "verification token" lines into the logs and get one adopted as
+    the signing secret during a later re-subscription.
+
+    Re-subscribing on purpose (e.g. the endpoint URL changed) means clearing
+    NOTION_WEBHOOK_SECRET and redeploying first - see the README.
+    """
+    if secret:
+        return None
+    return payload.get("verification_token")
+
+
 def verify_signature(body, header, secret):
     if not (header and secret):
         return False

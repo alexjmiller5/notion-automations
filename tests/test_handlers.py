@@ -18,7 +18,7 @@ import hmac
 from datetime import datetime, timezone
 
 from core import registry as R
-from core.handlers import handle_event, verify_signature
+from core.handlers import handle_event, handshake_token, verify_signature
 
 NOW = datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc)
 
@@ -161,3 +161,18 @@ def test_trip_edit_syncs_linked_note_title():
     )
     handle_event(event("trip"), fake, NOW, bot_id="me")
     assert ("note1", {"Title": {"title": [{"text": {"content": "Japan Notes"}}]}}) in fake.updated
+
+
+class TestHandshakeToken:
+    """The handshake is the only unsigned path; it closes once a secret exists."""
+
+    def test_returns_token_during_setup(self):
+        assert handshake_token({"verification_token": "tok"}, "") == "tok"
+
+    def test_refused_once_a_secret_is_configured(self):
+        # log-poisoning guard: a stranger must not be able to write plausible
+        # "verification token" lines that a later re-subscription might adopt
+        assert handshake_token({"verification_token": "attacker"}, "real-secret") is None
+
+    def test_ordinary_event_is_never_a_handshake(self):
+        assert handshake_token({"type": "page.created"}, "") is None

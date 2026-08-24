@@ -38,6 +38,12 @@ See `AGENTS.md` for the architecture rule and stack.
 2. Create the webhook subscription (Notion has no API for this - integration
    settings only):
    - Deploy first (push to `main`) so `notion_webhook`'s URL exists.
+   - **Re-subscribing later** (new endpoint URL, new integration): clear
+     `NOTION_WEBHOOK_SECRET` first and redeploy. Notion posts the handshake
+     token unsigned, so the endpoint only accepts a handshake while no
+     secret is set - otherwise anyone could spray fake tokens into the logs
+     and have one adopted as the signing secret. A 401 on the handshake
+     means the old secret is still configured.
    - `notion.so/profile/integrations` -> the integration -> **Webhooks**
      tab -> paste the deployed endpoint URL -> subscribe to
      `page.created` and `page.properties_updated`.

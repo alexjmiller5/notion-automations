@@ -63,21 +63,25 @@ def daily():
         state["high_water"] = mark
 
 
-@app.function(image=image, secrets=secrets, min_containers=0)
+# max_containers bounds the cost of a flood: signature checking happens in
+# our container (Notion cannot send Modal proxy-auth headers), so unlike
+# synapse's proxy-authed endpoints, junk requests are not rejected at the edge.
+@app.function(image=image, secrets=secrets, min_containers=0, max_containers=8)
 @modal.fastapi_endpoint(method="POST")
 async def notion_webhook(request: Request):
     from datetime import datetime, timezone
 
     from core.config import Settings
-    from core.handlers import handle_event, verify_signature
+    from core.handlers import handle_event, handshake_token, verify_signature
     from core.notion import NotionClient
 
     body = await request.body()
     payload = json.loads(body)
-    if "verification_token" in payload:  # one-time subscription handshake: surface it in logs
-        print(f"NOTION VERIFICATION TOKEN: {payload['verification_token']}")
-        return {"ok": True}
     s = Settings()
+    token = handshake_token(payload, s.notion_webhook_secret)
+    if token:  # one-time subscription handshake: surface it in logs
+        print(f"NOTION VERIFICATION TOKEN: {token}")
+        return {"ok": True}
     if not verify_signature(
         body, request.headers.get("X-Notion-Signature", ""), s.notion_webhook_secret
     ):
