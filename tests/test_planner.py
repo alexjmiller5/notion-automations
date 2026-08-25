@@ -118,3 +118,32 @@ class TestFixed:
         spec = fix(interval_months=12, anchor=date(2026, 10, 15))
         existing = [snap("T", OPEN, due=date(2026, 10, 15))]
         assert next_occurrence(spec, existing, today=date(2026, 10, 15)) is None
+
+
+def test_keepalive_quiet_when_recent_txn():
+    from core.planner import keepalive_due
+
+    assert not keepalive_due([], has_recent_txn=True, today=date(2026, 8, 25))
+
+
+def test_keepalive_quiet_when_task_open():
+    from core.planner import keepalive_due
+
+    existing = [TaskSnapshot("t", "To Do", date(2026, 8, 1), None)]
+    assert not keepalive_due(existing, has_recent_txn=False, today=date(2026, 8, 25))
+
+
+def test_keepalive_quiet_within_completion_grace():
+    from core.planner import keepalive_due
+
+    existing = [TaskSnapshot("t", "Completed", date(2026, 1, 1), date(2026, 1, 3))]
+    assert not keepalive_due(existing, has_recent_txn=False, today=date(2026, 8, 25))
+
+
+def test_keepalive_fires_when_inactive():
+    from core.planner import keepalive_due
+
+    assert keepalive_due([], has_recent_txn=False, today=date(2026, 8, 25))
+    # completion older than the grace window no longer counts as activity
+    existing = [TaskSnapshot("t", "Completed", date(2025, 1, 1), date(2025, 1, 3))]
+    assert keepalive_due(existing, has_recent_txn=False, today=date(2026, 8, 25))

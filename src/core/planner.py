@@ -30,6 +30,19 @@ def _step(d: date, spec) -> date:
     return add_months(d, spec.interval_months) + timedelta(days=spec.interval_days)
 
 
+def keepalive_due(existing, has_recent_txn, today, grace_days=365):
+    """Card keep-alive: fire when the Transactions DB shows no recent activity.
+
+    Quiet if a transaction exists in the window, a task is already open, or a
+    prior task was completed within grace_days - completing the task counts as
+    activity, which also covers cards whose scraper isn't live yet.
+    """
+    if has_recent_txn or any(t.status in OPEN_STATUSES for t in existing):
+        return False
+    completions = [t.completed for t in existing if t.completed]
+    return not (completions and (today - max(completions)).days < grace_days)
+
+
 def next_occurrence(spec, existing, today):
     if spec.mode == "relative":
         if any(t.status in OPEN_STATUSES for t in existing):

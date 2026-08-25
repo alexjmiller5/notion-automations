@@ -58,6 +58,12 @@ class NotionClient:
                 return results
             cursor = out["next_cursor"]
 
+    def any_match(self, data_source_id, filter):
+        out = self._req(
+            "POST", f"/v1/data_sources/{data_source_id}/query", {"page_size": 1, "filter": filter}
+        )
+        return bool(out["results"])
+
     def get_page(self, page_id):
         return self._req("GET", f"/v1/pages/{page_id}")
 

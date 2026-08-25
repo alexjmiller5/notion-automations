@@ -49,3 +49,14 @@ def test_headers():
         return httpx.Response(200, json={"results": [], "has_more": False})
 
     make_client(handler).query("ds")
+
+
+def test_any_match_single_request():
+    calls = []
+
+    def handler(req):
+        calls.append(json.loads(req.content))
+        return httpx.Response(200, json={"results": [{"id": "1"}], "has_more": True})
+
+    assert make_client(handler).any_match("ds", {"f": 1}) is True
+    assert calls == [{"page_size": 1, "filter": {"f": 1}}]  # no pagination follow-up

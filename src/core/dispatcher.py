@@ -4,8 +4,18 @@ from dataclasses import replace
 from datetime import timedelta
 
 from core.notion import task_properties
-from core.planner import next_occurrence
-from core.registry import CHRISTMAS_RECIPIENTS, GIFTS, RECURRING, TASKS, TaskTemplate
+from core.planner import keepalive_due, next_occurrence
+from core.registry import (
+    CC_KEEPALIVE_CARDS,
+    CHRISTMAS_RECIPIENTS,
+    GIFTS,
+    KEEPALIVE_INACTIVE_DAYS,
+    RECURRING,
+    TASKS,
+    TRANSACTIONS,
+    TaskTemplate,
+    cc_keepalive_title,
+)
 from core.rules import title_of
 
 
@@ -95,4 +105,22 @@ def dispatch(notion, today):
                 },
             )
             log.append(f"{spec.key}: created Gifts page for {person_id}")
+    cutoff = (today - timedelta(days=KEEPALIVE_INACTIVE_DAYS)).isoformat()
+    for account in CC_KEEPALIVE_CARDS:
+        title = cc_keepalive_title(account)
+        existing = notion.snapshots(TASKS, (title,))
+        has_recent_txn = notion.any_match(
+            TRANSACTIONS,
+            {
+                "and": [
+                    {"property": "Credit Card / Account", "select": {"equals": account}},
+                    {"property": "Transaction Date", "date": {"on_or_after": cutoff}},
+                ]
+            },
+        )
+        if not keepalive_due(existing, has_recent_txn, today, KEEPALIVE_INACTIVE_DAYS):
+            log.append(f"cc-keepalive {account}: nothing to do")
+            continue
+        notion.create_page(TASKS, task_properties(title, today, ("Finances",), "Medium"))
+        log.append(f"cc-keepalive {account}: created task")
     return log
