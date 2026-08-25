@@ -105,6 +105,19 @@ def dispatch(notion, today):
                 },
             )
             log.append(f"{spec.key}: created Gifts page for {person_id}")
+    # Fail hard (Modal emails on a failed schedule) if a Transactions-DB
+    # overhaul renames a card option - a filter on a gone option matches
+    # nothing, which would read as inactivity and create bogus tasks.
+    schema = notion.get_data_source(TRANSACTIONS)
+    options = {
+        o["name"] for o in schema["properties"]["Credit Card / Account"]["select"]["options"]
+    }
+    missing = [c for c in CC_KEEPALIVE_CARDS if c not in options]
+    if missing:
+        raise RuntimeError(
+            f"cc-keepalive: cards missing from Transactions DB 'Credit Card / Account' "
+            f"options: {missing} - update CC_KEEPALIVE_CARDS in registry.py"
+        )
     cutoff = (today - timedelta(days=KEEPALIVE_INACTIVE_DAYS)).isoformat()
     for account in CC_KEEPALIVE_CARDS:
         title = cc_keepalive_title(account)

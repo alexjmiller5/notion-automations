@@ -64,6 +64,9 @@ class NotionClient:
         )
         return bool(out["results"])
 
+    def get_data_source(self, data_source_id):
+        return self._req("GET", f"/v1/data_sources/{data_source_id}")
+
     def get_page(self, page_id):
         return self._req("GET", f"/v1/pages/{page_id}")
 
