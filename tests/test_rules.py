@@ -78,6 +78,21 @@ def test_tasks_defaults_filled_only_if_empty():
     assert rules["tasks-default-priority"].fix["Priority"]["select"]["name"] == "High"
 
 
+def test_tasks_westport_tag_exempt_from_default_due():
+    p = page(
+        R.TASKS,
+        {
+            "Status": status("To Do"),
+            "Completed Date": dateval(None),
+            "Due Date": dateval(None),
+            "Tags": {"multi_select": [{"name": "Westport"}]},
+            "Priority": {"select": {"name": "High"}},
+            "Name": {"title": [{"plain_text": "T"}]},
+        },
+    )
+    assert evaluate(R.TASKS, p, NOW) == []
+
+
 # --- Books ---
 
 
