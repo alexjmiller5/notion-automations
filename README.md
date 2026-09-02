@@ -11,8 +11,9 @@ as code.
 ```
 app.py                 Modal shim - image, secrets, endpoints, schedule
 src/core/               business logic (plain Python, portable)
-src/core/registry.py   the automations catalog (recurring specs + event rules)
-src/core/notion.py     Notion API client - the only module that talks to Notion
+src/core/registry.py   Notion ids + spec model/loaders (spec DATA lives in life-data)
+src/core/notion.py     Notion API client
+src/core/hub.py        life-data hub client - pulls the spec tables at run time
 scripts/run_local.py   dry-run the dispatch logic with no Modal at all
 tests/                  pytest
 .env.tpl                secrets manifest (1Password op:// refs, committed)
@@ -73,7 +74,7 @@ automation off only after its codified replacement has been observed
 working correctly (a cron run for schedule-triggered ones, a live webhook
 delivery for event-triggered ones):
 
-**Tasks DB - schedule-triggered** (`core.registry.RECURRING`, all fire from
+**Tasks DB - schedule-triggered** (the life-data `recurring_specs` table, all fire from
 the one `daily()` cron - switch off together after the first clean run):
 - [ ] Recertify Touchless ID
 - [ ] Redeem Credit Card Rewards

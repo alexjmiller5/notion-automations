@@ -14,8 +14,10 @@ from zoneinfo import ZoneInfo
 from core.config import Settings
 from core.dispatcher import dispatch
 from core.handlers import EVENT_DBS
+from core.hub import pull_rows
 from core.notion import NotionClient
 from core.reconciler import reconcile
+from core.registry import CARD_COLUMNS, SPEC_COLUMNS, load_cards, load_recurring
 
 
 def main() -> None:
@@ -24,7 +26,13 @@ def main() -> None:
     now = datetime.now(timezone.utc)
     today = now.astimezone(ZoneInfo("America/New_York")).date()
 
-    for line in dispatch(notion, today):
+    recurring = load_recurring(
+        pull_rows(s.life_hub_url, s.life_hub_token, "recurring_specs", SPEC_COLUMNS)
+    )
+    cards = load_cards(
+        pull_rows(s.life_hub_url, s.life_hub_token, "cc_keepalive_cards", CARD_COLUMNS)
+    )
+    for line in dispatch(notion, today, recurring, cards):
         print(line)
 
     since = (now - timedelta(days=1)).isoformat()

@@ -6,11 +6,8 @@ from datetime import timedelta
 from core.notion import task_properties
 from core.planner import keepalive_due, next_occurrence
 from core.registry import (
-    CC_KEEPALIVE_CARDS,
-    CHRISTMAS_RECIPIENTS,
     GIFTS,
     KEEPALIVE_INACTIVE_DAYS,
-    RECURRING,
     TASKS,
     TRANSACTIONS,
     TaskTemplate,
@@ -22,13 +19,14 @@ from core.rules import title_of
 def _hydrate_recipients(spec, notion):
     """Build the Christmas templates from live Notion data.
 
-    People's names are personal data and are not stored in this repo - the
-    registry holds page ids, so the names come from Notion at run time. Returns
+    People's names are personal data and are not stored in this repo or in
+    life-data - the spec row holds page ids, so the names come from Notion at
+    run time. Returns
     the spec with templates/match_titles filled in, plus each recipient's full
     name for the Gifts page title.
     """
     templates, full_names = [], {}
-    for person_id in CHRISTMAS_RECIPIENTS:
+    for person_id in spec.gift_recipients:
         full = title_of(notion.get_page(person_id)["properties"])
         full_names[person_id] = full
         name = full.split()[0]
@@ -56,9 +54,10 @@ def _hydrate_recipients(spec, notion):
     return hydrated, full_names
 
 
-def dispatch(notion, today):
+def dispatch(notion, today, recurring, cards):
+    """recurring/cards come from the life-data tables (see registry loaders)."""
     log = []
-    for spec in RECURRING:
+    for spec in recurring:
         full_names = {}
         if spec.gift_recipients:
             spec, full_names = _hydrate_recipients(spec, notion)
@@ -112,14 +111,14 @@ def dispatch(notion, today):
     options = {
         o["name"] for o in schema["properties"]["Credit Card / Account"]["select"]["options"]
     }
-    missing = [c for c in CC_KEEPALIVE_CARDS if c not in options]
+    missing = [c for c in cards if c not in options]
     if missing:
         raise RuntimeError(
             f"cc-keepalive: cards missing from Transactions DB 'Credit Card / Account' "
-            f"options: {missing} - update CC_KEEPALIVE_CARDS in registry.py"
+            f"options: {missing} - update the cc_keepalive_cards table in life-data"
         )
     cutoff = (today - timedelta(days=KEEPALIVE_INACTIVE_DAYS)).isoformat()
-    for account in CC_KEEPALIVE_CARDS:
+    for account in cards:
         title = cc_keepalive_title(account)
         existing = notion.snapshots(TASKS, (title,))
         has_recent_txn = notion.any_match(

@@ -8,17 +8,23 @@ Notion webhook receiver (event-triggered rules).
 
 **Business logic lives in** **`src/core/`** **as plain Python.** Only `app.py`
 imports `modal` - it is the deployment shim (image, secrets, endpoints,
-schedules). Within `src/core/`, only `notion.py` (Notion API) does network
-I/O - every other module (`registry.py`, `planner.py`, `rules.py`,
-`reconciler.py`) is pure functions: dataclasses and
+schedules). Within `src/core/`, only `notion.py` (Notion API) and `hub.py`
+(life-data hub) do network I/O - every other module (`registry.py`,
+`planner.py`, `rules.py`, `reconciler.py`) is pure functions: dataclasses and
 dicts in, decisions out. This keeps the logic trivially testable and
 portable - no backend abstraction, no `TaskBackend` interface; a future
 migration off Notion rewrites `notion.py` and the event rules, the planner
-and registry-as-intent carry over as-is.
+and the specs-as-intent carry over as-is.
 
-* `src/core/registry.py` (coming in a later task) is THE automations catalog:
-  every recurring spec and event rule declared in one reviewable file.
-  `app.py`'s cron and webhook entrypoints dispatch through it.
+* **The recurring specs are DATA, not code - they live in life-data**, in the
+  `recurring_specs` and `cc_keepalive_cards` tables (see the `data` skill),
+  pulled from the hub at each `daily()` run and validated by
+  `registry.load_recurring`/`load_cards`. Changing a chore's cadence, title,
+  or cards = `life sql UPDATE ...` - no commit, no deploy. Disable a spec by
+  soft-deleting its row (`SET deleted_at = updated_at`); re-enable by
+  clearing it. `registry.py` ships only the Notion data-source ids, the
+  dataclasses, and the row loaders. Personal spec content (chores, finances,
+  people) must NEVER be committed to this repo - that's why it moved out.
 * The `DRY_RUN` env var (`Settings.dry_run`) gates all Notion writes -
   when true, automations run their full logic and log what they would have
   written instead of calling the API.
