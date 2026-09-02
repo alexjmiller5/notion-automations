@@ -28,7 +28,7 @@ See `AGENTS.md` for the architecture rule and stack.
    creates the `Notion Automations` vault, the `Notion Automations ENV` item
    (one field per `.env.tpl` line - `NOTION_API_TOKEN` prompted,
    `NOTION_WEBHOOK_SECRET` left `CHANGEME` until the webhook step below fills
-   it in), AND the `Modal Notion Automations` deploy-token item (bootstrap
+   it in), AND the `Notion Automations CI Modal Token` deploy-token item (bootstrap
    scans `.github/workflows/*.yml` for `op://` refs and mints its fields via
    `scripts/provision.py`, which copies the canonical workspace token from
    the AI Agent vault - no prompt, nothing touches disk), plus the read-only
