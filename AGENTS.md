@@ -67,12 +67,6 @@ never assume the deploy succeeded.
 Write the test in `tests/` first, then the `src/core/` code. `app.py` shim
 functions stay thin enough to not need tests.
 
-## Cutover
-
-Runs live alongside the native Notion automations it replaces until each is
-verified working in code, then gets turned off DB-by-DB. The cutover
-checklist lives in `README.md`.
-
 ## Hardcoded owner assumptions
 
 The code is generic, but the workflow is wired to Alex's setup for

@@ -61,7 +61,7 @@ def verify_signature(body, header, secret):
     return hmac.compare_digest(expected, header)
 
 
-def handle_event(event, notion, now, bot_id):
+def handle_event(event, notion, now, bot_id, place_tags=()):
     if any(a.get("id") == bot_id for a in event.get("authors", [])):
         return ["skipped: self-authored"]
     if event.get("entity", {}).get("type") != "page":
@@ -78,7 +78,7 @@ def handle_event(event, notion, now, bot_id):
     props, log = page["properties"], []
 
     # 1. property rules (pure) - apply fixes
-    for v in evaluate(ds, page, now, created=created):
+    for v in evaluate(ds, page, now, created=created, place_tags=place_tags):
         if v.fix:
             notion.update_page(page["id"], v.fix)
             log.append(f"applied {v.rule}")

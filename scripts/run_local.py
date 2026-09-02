@@ -36,7 +36,7 @@ def main() -> None:
         print(line)
 
     since = (now - timedelta(days=1)).isoformat()
-    logs, _mark = reconcile(notion, EVENT_DBS, since, now)
+    logs, _mark = reconcile(notion, EVENT_DBS, since, now, place_tags=s.place_tags)
     for line in logs:
         print(line)
 

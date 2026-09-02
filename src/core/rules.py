@@ -79,7 +79,7 @@ _SLUGS = {
 }
 
 
-def evaluate(data_source_id, page, now, created=False):
+def evaluate(data_source_id, page, now, created=False, place_tags=()):
     props, out = page["properties"], []
     pid, purl, ptitle = page["id"], page.get("url", ""), title_of(props)
     slug = _SLUGS.get(data_source_id, "db")
@@ -100,8 +100,9 @@ def evaluate(data_source_id, page, now, created=False):
     if data_source_id == R.TASKS:
         due_today = now.astimezone(NY).date().isoformat()
         existing_tags = [t["name"] for t in (props.get("Tags") or {}).get("multi_select", [])]
-        # Westport tasks are done whenever Alex is next in Westport - no due date.
-        if not _date_set(props, "Due Date") and "Westport" not in existing_tags:
+        # Place-tagged tasks (NOTION_TASKS_PLACE_TAGS) are done whenever the
+        # user is next at that place - dateless by design, no due date forced.
+        if not _date_set(props, "Due Date") and not set(existing_tags) & set(place_tags):
             viol("tasks-default-due", {"Due Date": {"date": {"start": due_today}}})
         if not existing_tags:
             viol("tasks-default-tags", {"Tags": {"multi_select": [{"name": "Chore"}]}})

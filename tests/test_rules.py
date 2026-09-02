@@ -78,19 +78,22 @@ def test_tasks_defaults_filled_only_if_empty():
     assert rules["tasks-default-priority"].fix["Priority"]["select"]["name"] == "High"
 
 
-def test_tasks_westport_tag_exempt_from_default_due():
+def test_tasks_place_tag_exempt_from_default_due():
     p = page(
         R.TASKS,
         {
             "Status": status("To Do"),
             "Completed Date": dateval(None),
             "Due Date": dateval(None),
-            "Tags": {"multi_select": [{"name": "Westport"}]},
+            "Tags": {"multi_select": [{"name": "Lake House"}]},
             "Priority": {"select": {"name": "High"}},
             "Name": {"title": [{"plain_text": "T"}]},
         },
     )
-    assert evaluate(R.TASKS, p, NOW) == []
+    assert evaluate(R.TASKS, p, NOW, place_tags=("Lake House",)) == []
+    # not configured as a place tag -> the default-due rule still applies
+    rules = {v.rule for v in evaluate(R.TASKS, p, NOW)}
+    assert "tasks-default-due" in rules
 
 
 # --- Books ---

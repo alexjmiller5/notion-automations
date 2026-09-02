@@ -11,7 +11,7 @@ from core.registry import CALENDAR, TASKS, TRIPS
 from core.rules import Violation, evaluate, title_of
 
 
-def reconcile(notion, dbs, since_iso, now):
+def reconcile(notion, dbs, since_iso, now, place_tags=()):
     """Returns (log lines, new high-water mark). The mark is None when any
     database could not be swept - the caller must then leave the window open
     and fail the run, so the gap is retried and surfaced rather than skipped.
@@ -36,7 +36,7 @@ def reconcile(notion, dbs, since_iso, now):
         for page in pages:
             if page["id"] in seen:
                 continue
-            violations = evaluate(ds, page, now)
+            violations = evaluate(ds, page, now, place_tags=place_tags)
             if ds == CALENDAR and not (page["properties"].get("Notes") or {}).get("relation"):
                 # webhook-only rule (see handlers.py) re-flagged here since a
                 # missed/failed webhook delivery would otherwise go unnoticed

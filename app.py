@@ -59,7 +59,7 @@ def daily():
         print(line)
 
     since = state.get("high_water") or (now - timedelta(days=1)).isoformat()
-    logs, mark = reconcile(notion, EVENT_DBS, since, now)
+    logs, mark = reconcile(notion, EVENT_DBS, since, now, place_tags=s.place_tags)
     for line in logs:
         print(line)
     if mark is None:
@@ -100,6 +100,6 @@ async def notion_webhook(request: Request):
     # pinned against the docs 2026-08-20; "batched" in their docs means
     # multiple rapid edits get coalesced into fewer events upstream, not
     # multiple events per HTTP request).
-    logs = handle_event(payload, notion, now, notion.me())
+    logs = handle_event(payload, notion, now, notion.me(), place_tags=s.place_tags)
     print(logs)
     return {"ok": True, "handled": len(logs)}
